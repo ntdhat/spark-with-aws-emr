@@ -1,3 +1,4 @@
+from pyparsing import col
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F, types as T, Window
 import configparser
@@ -162,11 +163,17 @@ def main():
     users = processUsersData(df_log_staging)
     songplays = processSongPlaysData(df_log_staging, df_songs_staging)
     
-    # Load DataFrame to S3
-    songs.write.partitionBy('year', 'artist_id').option('header', True).parquet(PROCESSED_DATA_PATH + 'songs', mode='overwrite')
+    # Write DataFrame to S3
     artists.write.option('header', True).parquet(PROCESSED_DATA_PATH + 'artists', mode='overwrite')
-    time.write.partitionBy('year', 'month').option('header', True).parquet(PROCESSED_DATA_PATH + 'time', mode='overwrite')
     users.write.option('header', True).parquet(PROCESSED_DATA_PATH + 'users', mode='overwrite')
+
+    songs.repartition('year', 'artist_id')
+    songs.write.partitionBy('year', 'artist_id').option('header', True).parquet(PROCESSED_DATA_PATH + 'songs', mode='overwrite')
+
+    time.repartition('year', 'month')
+    time.write.partitionBy('year', 'month').option('header', True).parquet(PROCESSED_DATA_PATH + 'time', mode='overwrite')
+
+    songplays.repartition('year', 'month')
     songplays.write.partitionBy('year', 'month').option('header', True).parquet(PROCESSED_DATA_PATH + 'songplays', mode='overwrite')
 
     spark.stop()
